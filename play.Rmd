@@ -1,0 +1,98 @@
+---
+title: "rolevmete"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(roleR)
+library(meteR)
+library(feasiblesads)
+library(ggplot2)
+```
+
+```{r}
+
+toy_role <- readRDS(here::here("toy_role.rds"))
+
+pull_svs_role <- function(role_list) {
+  
+  nts <- length(role_list$mod@modelSteps)
+  
+  s <- rep(0,nts)
+  n <- rep(0, nts)
+  hill1 <- rep(0, nts)
+  
+  for(i in 1:nts){
+    
+    s[i] <- length(unique(role_list$mod@modelSteps[[i]]@localComm@indSpecies))
+    n[i] <- length((role_list$mod@modelSteps[[i]]@localComm@indSpecies))
+    hill1[i] <- hillR::hill_taxa((role_list$mod@modelSteps[[i]]@localComm@indSpecies) %>% tabulate(), q = 1)
+  }
+  
+  return(data.frame(s= s, n= n, iter = 1:nts, hill1 = hill1))
+  
+}
+
+toy_role_svs <- pull_svs_role(toy_role)
+
+ggplot(toy_role_svs, aes(iter, s)) +
+  geom_line()
+
+
+ggplot(toy_role_svs, aes(iter, hill1 )) +
+  geom_line()
+
+```
+
+
+## fs part
+
+```{r}
+
+fs_p_table <- fill_ps(max(toy_role_svs$s), max_n = max(toy_role_svs$n), storeyn =F)
+
+gen_fs_s <- function(s, n = max(toy_role_svs$n)) {
+  
+  this_fs <- sample_fs(s, n, 4000, p_table = fs_p_table)
+  
+}
+
+fs_hills <- function(fs) {
+  
+  hills <- apply(fs, MARGIN = 1, FUN = hillR::hill_taxa, q = 1)
+  
+  hills
+}
+
+fs_s <- lapply(toy_role_svs$s, gen_fs_s)
+
+fs_hills <- lapply(fs_s, fs_hills)
+
+names(fs_hills) <- toy_role_svs$iter
+
+fs_hills_df <- dplyr::bind_rows(fs_hills, .id = "iter") %>%
+  tidyr::pivot_longer(everything(), names_to = "iter", values_to = "hill1") %>%
+  dplyr::mutate(iter = as.numeric(iter))
+
+ggplot(fs_hills_df, aes(iter, hill1)) +
+  geom_point(alpha = .02) +
+  geom_line(data = toy_role_svs, aes(y = hill1), color = "green")
+
+
+```
+
+
+```{r}
+
+save.image("play.RData")
+
+```
+
+## mete part
+
+```{r}
+
+
+
+```
